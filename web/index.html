@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpsGraph — Delivery-ops accountability, as a graph</title>
+<meta name="description" content="OpsGraph models a delivery operation's agents, closers, orders, flags and suspensions as a Relate graph, so every accountability question is one traversal." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0e1117;
+    --panel: #12151d;
+    --line: #1f2633;
+    --text: #e8ecf3;
+    --muted: #8b94a7;
+    --accent: #4f8cff;      /* relate blue */
+    --accent2: #38d9a9;     /* confirm green */
+    --warn: #ffb454;        /* warning amber */
+    --danger: #ff6b6b;      /* flag red */
+    --violet: #b197fc;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, .brand { font-family: 'Space Grotesk', sans-serif; }
+  code, .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ambient graph canvas */
+  #graph-bg { position: fixed; inset: 0; z-index: 0; opacity: .5; }
+  .content { position: relative; z-index: 1; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* nav */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    backdrop-filter: blur(12px);
+    background: rgba(10,12,16,.72);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: -.02em; }
+  .brand .dot { color: var(--accent); }
+  nav .links { display: flex; gap: 22px; align-items: center; }
+  nav a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
+  nav a:hover { color: var(--text); }
+  .btn {
+    display: inline-block; padding: 9px 18px; border-radius: 8px;
+    font-weight: 600; font-size: .9rem; text-decoration: none;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff !important; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(79,140,255,.35); }
+  .btn-ghost { border: 1px solid var(--line); color: var(--text) !important; }
+  .btn-ghost:hover { border-color: var(--accent); }
+
+  /* hero */
+  header { padding: 170px 0 90px; text-align: center; }
+  .eyebrow {
+    display: inline-block; padding: 5px 14px; border-radius: 100px;
+    border: 1px solid var(--line); background: rgba(79,140,255,.08);
+    color: var(--accent); font-size: .8rem; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; margin-bottom: 26px;
+  }
+  h1 {
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    line-height: 1.05; letter-spacing: -.03em; font-weight: 700;
+  }
+  h1 .grad {
+    background: linear-gradient(100deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { max-width: 640px; margin: 24px auto 40px; color: var(--muted); font-size: 1.12rem; }
+  .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* sections */
+  section { padding: 90px 0; }
+  .kicker { color: var(--accent); font-weight: 600; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; }
+  h2 { font-size: clamp(1.7rem, 3.6vw, 2.5rem); letter-spacing: -.02em; margin-bottom: 16px; }
+  .lead { color: var(--muted); max-width: 680px; font-size: 1.05rem; }
+
+  /* rule cards */
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 44px; }
+  .rule {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 24px; transition: border-color .2s, transform .2s;
+  }
+  .rule:hover { border-color: #2c3648; transform: translateY(-2px); }
+  .rule .tag { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; display: inline-block; margin-bottom: 12px; }
+  .tag-blue { background: rgba(79,140,255,.14); color: var(--accent); }
+  .tag-green { background: rgba(56,217,169,.12); color: var(--accent2); }
+  .tag-amber { background: rgba(255,180,84,.12); color: var(--warn); }
+  .tag-red { background: rgba(255,107,107,.12); color: var(--danger); }
+  .tag-violet { background: rgba(177,151,252,.12); color: var(--violet); }
+  .rule h3 { font-size: 1.05rem; margin-bottom: 8px; }
+  .rule p { color: var(--muted); font-size: .92rem; }
+
+  /* flow diagram */
+  .flow {
+    margin-top: 48px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 16px; padding: 34px; overflow-x: auto;
+  }
+  .flow-track { display: flex; align-items: center; gap: 0; min-width: 820px; justify-content: space-between; }
+  .node-pill {
+    padding: 12px 20px; border-radius: 12px; font-family: 'JetBrains Mono', monospace;
+    font-size: .85rem; font-weight: 500; border: 1.5px solid; white-space: nowrap;
+  }
+  .n-closer { border-color: var(--violet); color: var(--violet); background: rgba(177,151,252,.08); }
+  .n-order { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,.08); }
+  .n-agent { border-color: var(--accent2); color: var(--accent2); background: rgba(56,217,169,.08); }
+  .n-flag { border-color: var(--danger); color: var(--danger); background: rgba(255,107,107,.08); }
+  .n-susp { border-color: var(--warn); color: var(--warn); background: rgba(255,180,84,.08); }
+  .edge-label { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 90px; position: relative; }
+  .edge-label::before { content: ''; position: absolute; top: 50%; left: 4px; right: 4px; height: 1.5px; background: var(--line); }
+  .edge-label span {
+    position: relative; background: var(--panel); padding: 2px 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted);
+  }
+
+  /* questions table */
+  .questions { margin-top: 44px; display: flex; flex-direction: column; gap: 12px; }
+  .q {
+    display: grid; grid-template-columns: 44px 1fr auto; gap: 18px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px;
+  }
+  .q .num { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: .9rem; }
+  .q .text { font-size: .98rem; }
+  .q .who { font-size: .75rem; color: var(--muted); border: 1px solid var(--line); padding: 3px 10px; border-radius: 100px; white-space: nowrap; }
+
+  /* code block */
+  .codeblock {
+    margin-top: 44px; background: #0b0e14; border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden;
+  }
+  .codeblock .bar {
+    display: flex; align-items: center; gap: 8px; padding: 12px 18px;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .codeblock .bar .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .codeblock .bar .title { margin-left: 10px; color: var(--muted); font-size: .8rem; font-family: 'JetBrains Mono', monospace; }
+  .codeblock pre { padding: 22px 24px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: .86rem; line-height: 1.7; }
+  .c-kw { color: var(--accent); }
+  .c-label { color: var(--accent2); }
+  .c-str { color: var(--warn); }
+  .c-cm { color: #59637a; }
+
+  /* stats strip */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-top: 48px; }
+  .stat { text-align: center; padding: 26px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  .stat .v { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .stat .l { color: var(--muted); font-size: .82rem; margin-top: 4px; }
+
+  /* install steps */
+  .steps { margin-top: 44px; display: flex; flex-direction: column; gap: 14px; counter-reset: step; }
+  .step { display: grid; grid-template-columns: 40px 1fr; gap: 18px; align-items: start; }
+  .step .n {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    background: rgba(79,140,255,.1); color: var(--accent); font-weight: 700; font-family: 'Space Grotesk', sans-serif;
+  }
+  .step .cmd {
+    background: #0b0e14; border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 18px; font-family: 'JetBrains Mono', monospace; font-size: .88rem; color: var(--accent2);
+    overflow-x: auto;
+  }
+  .step p { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+
+  footer { border-top: 1px solid var(--line); padding: 44px 0; text-align: center; color: var(--muted); font-size: .86rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 640px) {
+    .q { grid-template-columns: 32px 1fr; }
+    .q .who { display: none; }
+    header { padding-top: 130px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="graph-bg"></canvas>
+
+<div class="content">
+<nav>
+  <div class="wrap">
+    <span class="brand">Ops<span class="dot">Graph</span></span>
+    <div class="links">
+      <a href="#problem">The problem</a>
+      <a href="#model">The graph</a>
+      <a href="#questions">Questions</a>
+      <a href="#run">Run it</a>
+      <a class="btn btn-primary" href="https://github.com/Mofe-Bankole/opsgraph">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="wrap">
+  <span class="eyebrow">Built on Relate by Neo4j</span>
+  <h1>Delivery-ops accountability,<br /><span class="grad">answered as graph traversals.</span></h1>
+  <p class="sub">
+    OpsGraph models a delivery operation — agents, closers, orders, flags, warnings, suspensions —
+    as an embedded Relate graph, so questions like <em>"who is one flag from suspension, and who keeps assigning to them?"</em>
+    are a single <code class="mono">MATCH</code>, not a spreadsheet.
+  </p>
+  <div class="hero-cta">
+    <a class="btn btn-primary" href="https://github.com/Mofe-Bankole/opsgraph">Clone the repo</a>
+    <a class="btn btn-ghost" href="#questions">See the 8 questions</a>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap">
+    <p class="kicker">The problem</p>
+    <h2>A real accountability system, drowning in rows</h2>
+    <p class="lead">
+      Ishop, a Nigerian e-commerce logistics operation, is rolling out a points-and-flags accountability
+      system between sales closers and delivery agents. The rules are precise — and every one of them
+      is about <strong>relationships</strong>: who assigned what to whom, what it triggered, and who is
+      allowed to undo it. Relational tables scatter those answers across joins. A graph keeps them one hop away.
+    </p>
+    <div class="rules">
+      <div class="rule">
+        <span class="tag tag-blue">Assignment</span>
+        <h3>The 1-hour window</h3>
+        <p>A closer assigns an order; the agent must confirm within 1 hour — orders from 5pm get until 12pm next day — or the order bounces back for reassignment.</p>
+      </div>
+      <div class="rule">
+        <span class="tag tag-red">Consequence</span>
+        <h3>−15 points &amp; a flag</h3>
+        <p>Every missed window costs the agent 15 points and issues a red flag. Three flags and the agent loses the ability to collect orders entirely.</p>
+      </div>
+      <div class="rule">
+        <span class="tag tag-amber">Payments</span>
+        <h3>The 48-hour cadence</h3>
+        <p>A payment due 48 hours earns a warning, then one every 24 hours. The third warning bans the agent from collecting any orders.</p>
+      </div>
+      <div class="rule">
+        <span class="tag tag-violet">Authority</span>
+        <h3>Only specific roles can undo</h3>
+        <p>Only the Accountant lifts payment bans. Only the Head of Operations lifts delivery suspensions. HR handles closer bans and misconduct reports. Authority is a path, not a column.</p>
+      </div>
+      <div class="rule">
+        <span class="tag tag-green">Incentive</span>
+        <h3>Tiers: Beginner → Superstar</h3>
+        <p>Closers climb tiers by confirmed orders — Beginner under 15, Standard 15–20, Superstar above 20 — and higher tiers receive more orders to close.</p>
+      </div>
+      <div class="rule">
+        <span class="tag tag-red">Quality</span>
+        <h3>The 55% / 80% baselines</h3>
+        <p>80% confirmation is the baseline. A new closer under 55% twice is banned from receiving orders. Underperformance compounds across the graph.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="model" style="background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);">
+  <div class="wrap">
+    <p class="kicker">The graph</p>
+    <h2>The whole operation, one hop at a time</h2>
+    <p class="lead">
+      Ten node types, sixteen relationship types — persisted in a single <code class="mono">.rl</code> file
+      that anyone can open, inspect, and serve over MCP, HTTP or Bolt.
+    </p>
+
+    <div class="flow">
+      <div class="flow-track">
+        <span class="node-pill n-closer">SalesCloser</span>
+        <span class="edge-label"><span>ASSIGNED</span></span>
+        <span class="node-pill n-order">Order</span>
+        <span class="edge-label"><span>ASSIGNED_TO</span></span>
+        <span class="node-pill n-agent">Agent</span>
+        <span class="edge-label"><span>GIVEN_TO ◂ Flag</span></span>
+        <span class="node-pill n-flag">Flag ×3</span>
+        <span class="edge-label"><span>ON ◂ Suspension</span></span>
+        <span class="node-pill n-susp">Suspended</span>
+      </div>
+    </div>
+
+    <div class="codeblock">
+      <div class="bar">
+        <span class="dot" style="background:#ff5f57"></span>
+        <span class="dot" style="background:#febc2e"></span>
+        <span class="dot" style="background:#28c840"></span>
+        <span class="title">suspension-chain.cypher — who can lift what?</span>
+      </div>
+      <pre><span class="c-kw">MATCH</span> (s:<span class="c-label">Suspension</span> {active: <span class="c-kw">true</span>})-[:<span class="c-label">ON</span>]-&gt;(x)
+<span class="c-kw">MATCH</span> (s)-[:<span class="c-label">LIFTABLE_BY</span>]-&gt;(r:<span class="c-label">Role</span>)
+<span class="c-kw">RETURN</span> s.kind <span class="c-kw">AS</span> kind, x.name <span class="c-kw">AS</span> who,
+       r.name <span class="c-kw">AS</span> onlyRoleThatCanLift
+<span class="c-cm">// → { kind: "delivery", who: "Seun Balogun",
+//     onlyRoleThatCanLift: "HeadOfOperations" }</span></pre>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="v">48</div><div class="l">nodes in the demo store</div></div>
+      <div class="stat"><div class="v">88</div><div class="l">relationships</div></div>
+      <div class="stat"><div class="v">8</div><div class="l">accountability questions</div></div>
+      <div class="stat"><div class="v">1</div><div class="l">file — the whole database</div></div>
+      <div class="stat"><div class="v">0</div><div class="l">servers to deploy</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="questions">
+  <div class="wrap">
+    <p class="kicker">The payoff</p>
+    <h2>Eight questions the operation actually asks</h2>
+    <p class="lead">Each is a named traversal in the repo. Each maps to a person whose job depends on the answer.</p>
+    <div class="questions">
+      <div class="q"><span class="num">01</span><span class="text">Which agents are one red flag from suspension — and which closers keep assigning to them?</span><span class="who">Head of Ops</span></div>
+      <div class="q"><span class="num">02</span><span class="text">Which agents are one payment warning from a ban?</span><span class="who">Accountant</span></div>
+      <div class="q"><span class="num">03</span><span class="text">Which orders bounced back unconfirmed, and what did each miss cost?</span><span class="who">Sales closers</span></div>
+      <div class="q"><span class="num">04</span><span class="text">Which closers are within 2 confirmed orders of the next tier?</span><span class="who">HR</span></div>
+      <div class="q"><span class="num">05</span><span class="text">Who is suspended right now, and exactly which role can lift it?</span><span class="who">Head of Ops</span></div>
+      <div class="q"><span class="num">06</span><span class="text">Confirmation rate per closer, against the 80% / 55% baselines</span><span class="who">CEO</span></div>
+      <div class="q"><span class="num">07</span><span class="text">The full accountability trail of a single bounced order</span><span class="who">Anyone</span></div>
+      <div class="q"><span class="num">08</span><span class="text">Everything that ever happened around one agent</span><span class="who">HR</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="run" style="background: var(--bg2); border-top: 1px solid var(--line);">
+  <div class="wrap">
+    <p class="kicker">Run it</p>
+    <h2>Zero to answers in four commands</h2>
+    <p class="lead">No server, no signup. Relate runs embedded — the database is a file in the repo.</p>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><div><div class="cmd">git clone https://github.com/Mofe-Bankole/opsgraph && cd opsgraph && npm install</div></div></div>
+      <div class="step"><span class="n">2</span><div><div class="cmd">npm run seed</div><p>Rebuilds <code class="mono">data/opsgraph.rl</code> deterministically — 48 nodes, 88 relationships.</p></div></div>
+      <div class="step"><span class="n">3</span><div><div class="cmd">npm run ask -- --all</div><p>Walks all eight accountability questions against the store.</p></div></div>
+      <div class="step"><span class="n">4</span><div><div class="cmd">npm run serve</div><p>Exposes the same graph over MCP (for AI agents), HTTP Query API and Bolt — from one file.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>OpsGraph</strong> — built for the <a href="https://relate.devpost.com">Relate by Neo4j Hackathon</a> ·
+    <a href="https://github.com/Mofe-Bankole/opsgraph">github.com/Mofe-Bankole/opsgraph</a></p>
+    <p style="margin-top:8px">Embedded graph: <a href="https://relatedb.ai">Relate</a> · single-file store · Cypher · MCP-ready</p>
+  </div>
+</footer>
+</div>
+
+<script>
+// Ambient drifting-graph background: nodes + edges, subtle physics.
+const cv = document.getElementById('graph-bg');
+const cx = cv.getContext('2d');
+let W, H, nodes = [];
+const COLORS = ['#4f8cff', '#38d9a9', '#ffb454', '#ff6b6b', '#b197fc'];
+function resize() {
+  W = cv.width = innerWidth; H = cv.height = innerHeight;
+  const count = Math.min(64, Math.floor(W * H / 26000));
+  nodes = Array.from({ length: count }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25,
+    r: 1.6 + Math.random() * 2.2, c: COLORS[Math.random() * COLORS.length | 0],
+  }));
+}
+resize(); addEventListener('resize', resize);
+function tick() {
+  cx.clearRect(0, 0, W, H);
+  for (const n of nodes) {
+    n.x += n.vx; n.y += n.vy;
+    if (n.x < 0 || n.x > W) n.vx *= -1;
+    if (n.y < 0 || n.y > H) n.vy *= -1;
+  }
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+    const a = nodes[i], b = nodes[j], dx = a.x - b.x, dy = a.y - b.y, d = dx * dx + dy * dy;
+    if (d < 150 * 150) {
+      cx.strokeStyle = 'rgba(120,140,180,' + (0.14 * (1 - d / 22500)) + ')';
+      cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+    }
+  }
+  for (const n of nodes) {
+    cx.fillStyle = n.c + '55';
+    cx.beginPath(); cx.arc(n.x, n.y, n.r, 0, 7); cx.fill();
+  }
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>
