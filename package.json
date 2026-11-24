@@ -1,0 +1,27 @@
+{
+  "name": "opsgraph",
+  "version": "1.0.0",
+  "description": "Ishop delivery-ops accountability graph on Relate by Neo4j",
+  "main": "index.js",
+  "scripts": {
+    "seed": "tsx src/seed.ts",
+    "ask": "tsx src/ask.ts",
+    "serve": "relate serve --database ./data/opsgraph.rl --mcp 8080 --http 7474",
+    "inspect": "relate info --database ./data/opsgraph.rl",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "@relate/relate": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "koffi@3.3.8": true,
+    "esbuild@0.28.2": true
+  }
+}

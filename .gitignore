@@ -1,0 +1,4 @@
+node_modules/
+dist/
+*.log
+# data/*.rl is COMMITTED on purpose: judges must be able to inspect the store.
