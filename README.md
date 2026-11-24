@@ -4,7 +4,7 @@ Delivery-ops accountability, answered as graph traversals: an embedded Relate st
 
 ## Use case
 
-Ishop (a Nigerian e-commerce logistics operation) runs a points-and-flags accountability system between **sales closers** and **delivery agents**:
+Ishop (a Nigerian e-commerce logistics operation) is rolling out a points-and-flags accountability system between **sales closers** and **delivery agents** — the rules below are set, and onboarding starts now. OpsGraph is built to be ready on day one: the schema and accountability queries are in place before the first real order lands, and an AI agent can answer ops questions over MCP from the moment data starts flowing.
 
 - A closer assigns an order to an agent; the agent must **confirm within 1 hour** (orders from 5pm+ by 12pm next day) or the order **bounces back** to the closer and the agent **loses 15 points**.
 - **3 red flags** on an agent → delivery suspension. Only the **Head of Operations** can lift it.
