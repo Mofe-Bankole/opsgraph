@@ -2,6 +2,8 @@
 
 Delivery-ops accountability, answered as graph traversals: an embedded Relate store of Ishop's agents, closers, orders, flags, warnings and suspensions that tells you *who is about to break a rule, why, and who is allowed to fix it*.
 
+**Landing page:** https://mofe-bankole.github.io/opsgraph/
+
 ## Use case
 
 Ishop (a Nigerian e-commerce logistics operation) is rolling out a points-and-flags accountability system between **sales closers** and **delivery agents** — the rules below are set, and onboarding starts now. OpsGraph is built to be ready on day one: the schema and accountability queries are in place before the first real order lands, and an AI agent can answer ops questions over MCP from the moment data starts flowing.
